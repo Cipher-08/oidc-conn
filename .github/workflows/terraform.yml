@@ -22,6 +22,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
+      - name: Debug AWS OIDC Authentication
+        run: aws sts get-caller-identity
+
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
 
