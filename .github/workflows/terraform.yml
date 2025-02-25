@@ -1,4 +1,4 @@
-name: Terraform Deployment
+name: Terraform Deployment with Firefly
 
 on:
   push:
@@ -28,8 +28,30 @@ jobs:
       - name: Initialize Terraform
         run: terraform init
 
-      - name: Plan Terraform changes
-        run: terraform plan -out=tfplan
+      - name: Terraform Plan with JSON Output
+        run: |
+          terraform plan -json -out=tf.plan > plan_log.jsonl
+          terraform show -json tf.plan > plan_output.json
 
-      - name: Apply Terraform changes
-        run: terraform apply -auto-approve tfplan
+      - name: Install Firefly CLI
+        run: |
+          curl -O https://gofirefly-prod-iac-ci-cli-binaries.s3.amazonaws.com/fireflyci/latest/fireflyci_Linux_x86_64.tar.gz
+          tar -xf fireflyci_Linux_x86_64.tar.gz
+          chmod a+x fireflyci
+
+      - name: Firefly Post-Plan
+        run: |
+          ./fireflyci post-plan -l plan_log.jsonl -f plan_output.json --workspace oidc-conn
+        env:
+          FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
+          FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
+
+      - name: Terraform Apply with JSON Output
+        run: terraform apply -auto-approve -json > apply_log.jsonl
+
+      - name: Firefly Post-Apply
+        run: |
+          ./fireflyci post-apply -f apply_log.jsonl --workspace oidc-conn
+        env:
+          FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
+          FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
