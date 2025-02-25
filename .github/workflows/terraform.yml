@@ -54,13 +54,3 @@ jobs:
         env:
           FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
           FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
-
-      - name: Terraform Apply with JSON Output
-        run: terraform apply -auto-approve -json > apply_log.jsonl
-
-      - name: Firefly Post-Apply
-        run: |
-          ./fireflyci post-apply -f apply_log.jsonl --workspace oidc-conn
-        env:
-          FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
-          FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
