@@ -1,4 +1,4 @@
-name: Terraform Deployment with Firefly
+name: Terraform Deployment with Firefly and OIDC
 
 on:
   push:
@@ -22,9 +22,13 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
+      - name: Debug AWS OIDC Authentication
+        run: aws sts get-caller-identity
+
       - name: Get Web Identity Token
         run: |
-          curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
+          curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
