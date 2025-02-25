@@ -22,9 +22,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Debug AWS OIDC Authentication
-        run: aws sts get-caller-identity
-
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -49,15 +46,8 @@ jobs:
           FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
           FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
 
-      - name: Terraform Apply with JSON Output (OIDC Enabled)
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          AWS_REGION: us-east-1
-        run: |
-          unset AWS_ACCESS_KEY_ID
-          unset AWS_SECRET_ACCESS_KEY
-          unset AWS_SESSION_TOKEN
-          terraform apply -auto-approve -json > apply_log.jsonl
+      - name: Terraform Apply with JSON Output
+        run: terraform apply -auto-approve -json > apply_log.jsonl
 
       - name: Firefly Post-Apply
         run: |
