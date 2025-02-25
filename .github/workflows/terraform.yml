@@ -1,3 +1,67 @@
-- name: Debug AWS OIDC Authentication
-  run: |
-    aws sts get-caller-identity
+name: Terraform Deployment with Firefly
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Debug AWS OIDC Authentication
+        run: aws sts get-caller-identity
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Terraform Plan with JSON Output
+        run: |
+          terraform plan -json -out=tf.plan > plan_log.jsonl
+          terraform show -json tf.plan > plan_output.json
+
+      - name: Install Firefly CLI
+        run: |
+          curl -O https://gofirefly-prod-iac-ci-cli-binaries.s3.amazonaws.com/fireflyci/latest/fireflyci_Linux_x86_64.tar.gz
+          tar -xf fireflyci_Linux_x86_64.tar.gz
+          chmod a+x fireflyci
+
+      - name: Firefly Post-Plan
+        run: |
+          ./fireflyci post-plan -l plan_log.jsonl -f plan_output.json --workspace oidc-conn
+        env:
+          FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
+          FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
+
+      - name: Terraform Apply with JSON Output (OIDC Enabled)
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+        run: |
+          unset AWS_ACCESS_KEY_ID
+          unset AWS_SECRET_ACCESS_KEY
+          unset AWS_SESSION_TOKEN
+          terraform apply -auto-approve -json > apply_log.jsonl
+
+      - name: Firefly Post-Apply
+        run: |
+          ./fireflyci post-apply -f apply_log.jsonl --workspace oidc-conn
+        env:
+          FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
+          FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
