@@ -7,7 +7,7 @@ resource "aws_s3_bucket" "prod_backup" {
 
   tags = {
     Name        = "prod-backup-2025"
-    Environment = "Production"
+    Environment = "Production environment"
   }
 }
 
