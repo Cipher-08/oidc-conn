@@ -1,4 +1,4 @@
-name: Terraform Deployment with Firefly (OIDC)
+name: Terraform Deployment with Firefly
 
 on:
   push:
@@ -21,11 +21,6 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-
-      - name: Debug AWS OIDC Authentication
-        run: |
-          echo "Testing AWS OIDC authentication..."
-          aws sts get-caller-identity
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -51,48 +46,8 @@ jobs:
           FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
           FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
 
-      - name: Terraform Apply with JSON Output (OIDC Enabled)
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          AWS_REGION: us-east-1
-        run: |
-          echo "Ensuring OIDC is used - unsetting any static credentials..."
-          unset AWS_ACCESS_KEY_ID
-          unset AWS_SECRET_ACCESS_KEY
-          unset AWS_SESSION_TOKEN
-
-          echo "Fetching OIDC token..."
-          TOKEN=$(curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL")
-
-          if [ -z "$TOKEN" ]; then
-            echo "OIDC token is empty. GitHub is not providing a valid token."
-            exit 1
-          fi
-
-          echo "OIDC Token Fetched"
-
-          echo "Assuming AWS role using OIDC..."
-          CREDENTIALS=$(aws sts assume-role-with-web-identity --role-arn ${{ secrets.AWS_ROLE_ARN }} \
-            --role-session-name GitHubOIDCSession \
-            --web-identity-token "$TOKEN" \
-            --duration-seconds 3600 || echo "Failed to assume role")
-
-          if [ -z "$CREDENTIALS" ]; then
-            echo "Failed to assume AWS role. Exiting..."
-            exit 1
-          fi
-
-          export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.Credentials.AccessKeyId')
-          export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.Credentials.SecretAccessKey')
-          export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.Credentials.SessionToken')
-
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
-            echo "AWS credentials are empty after assuming role. Exiting..."
-            exit 1
-          fi
-
-          echo "OIDC authentication successful, running Terraform apply..."
-          terraform apply -auto-approve -json > apply_log.jsonl
+      - name: Terraform Apply with JSON Output
+        run: terraform apply -auto-approve -json > apply_log.jsonl
 
       - name: Firefly Post-Apply
         run: |
